@@ -10,6 +10,8 @@
   
   <url>http://github.com/jdcasey/monolith-maven-plugin</url>
   
+  <description>Maven plugin to generate self-contained versions of declared plugins and other artifacts.</description>
+  
   <licenses>
     <license>
       <name>APLv2.0</name>
