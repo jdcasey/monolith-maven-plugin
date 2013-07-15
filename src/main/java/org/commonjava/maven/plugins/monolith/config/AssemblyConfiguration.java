@@ -60,8 +60,7 @@ public class AssemblyConfiguration
     private void configureDefaults()
     {
         final File basedir = project.getBasedir();
-        this.finalName =
-            project.getGroupId() + "-" + project.getArtifactId() + "-" + monolithVersion.replace( '-', '_' );
+        this.finalName = project.getArtifactId() + "-" + monolithVersion;
 
         final File targetDir = new File( basedir, "target" );
         this.installDirectory = new File( targetDir, "installed" );
