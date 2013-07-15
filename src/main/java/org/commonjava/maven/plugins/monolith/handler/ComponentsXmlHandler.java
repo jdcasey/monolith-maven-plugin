@@ -38,12 +38,12 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
 import org.apache.maven.plugin.assembly.filter.ComponentsXmlArchiverFileFilter;
-import org.apache.maven.plugin.assembly.filter.ContainerDescriptorHandler;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.ResourceIterator;
-import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
+import org.codehaus.plexus.logging.Logger;
+import org.commonjava.maven.plugins.monolith.comp.MonolithVersioningContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
@@ -54,15 +54,9 @@ import org.xml.sax.SAXException;
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  * @version $Id: ComponentsXmlArchiverFileFilter.java 999612 2010-09-21 20:34:50Z jdcasey $
  */
-@Component( role = ContainerDescriptorHandler.class, hint = ComponentsXmlHandler.ID, alias = "plexus", instantiationStrategy = "per-lookup" )
 public class ComponentsXmlHandler
-    extends AbstractDescriptorHandler
-    implements ContainerDescriptorHandler
+    extends AbstractMonolithDescriptorHandler
 {
-
-    public static final String ID = "plexus";
-
-    //    public static final String ID = "components.xml";
 
     // [jdcasey] Switched visibility to protected to allow testing. Also, because this class isn't final, it should
     // allow
@@ -70,6 +64,11 @@ public class ComponentsXmlHandler
     private final Map<String, Element> components = new LinkedHashMap<>();
 
     public static final String COMPONENTS_XML_PATH = "META-INF/plexus/components.xml";
+
+    public ComponentsXmlHandler( final MonolithVersioningContext monolithVersioningContext, final Logger logger )
+    {
+        super( monolithVersioningContext, logger );
+    }
 
     protected void addComponentsXml( final InputStream stream )
         throws IOException
@@ -152,11 +151,7 @@ public class ComponentsXmlHandler
                 closeQuietly( out );
             }
 
-            excludeOverride = true;
-
             archiver.addFile( f, COMPONENTS_XML_PATH );
-
-            excludeOverride = false;
         }
     }
 
@@ -232,7 +227,6 @@ public class ComponentsXmlHandler
     @Override
     public void clearState()
     {
-        super.clearState();
         components.clear();
         logger.info( "components map cleared; new size is: " + components.size() );
     }

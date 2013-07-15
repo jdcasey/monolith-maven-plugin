@@ -28,6 +28,7 @@ import org.commonjava.maven.plugins.monolith.config.AssemblyConfiguration;
 import org.sonatype.aether.RepositorySystem;
 import org.sonatype.aether.RepositorySystemSession;
 import org.sonatype.aether.artifact.Artifact;
+import org.sonatype.aether.artifact.ArtifactType;
 import org.sonatype.aether.deployment.DeployRequest;
 import org.sonatype.aether.deployment.DeploymentException;
 import org.sonatype.aether.impl.internal.SimpleLocalRepositoryManager;
@@ -50,11 +51,7 @@ public class RepositoryOutputHelper
     {
         final InstallRequest req = new InstallRequest();
 
-        Artifact artifact =
-            new DefaultArtifact( ref.getGroupId(), ref.getArtifactId(), ref.getClassifier(), ref.getType(),
-                                 ref.getVersionString() );
-
-        artifact = artifact.setFile( artifactFile );
+        final Artifact artifact = createArtifact( artifactFile, ref, rss );
 
         req.setArtifacts( Arrays.asList( artifact ) );
 
@@ -65,16 +62,31 @@ public class RepositoryOutputHelper
         repositorySystem.install( sess, req );
     }
 
+    private Artifact createArtifact( final File artifactFile, final ArtifactRef ref, final RepositorySystemSession rss )
+    {
+        final ArtifactType type = rss.getArtifactTypeRegistry()
+                                     .get( ref.getType() );
+        final String ext = type == null ? ref.getType() : type.getExtension();
+        String classifier = ref.getClassifier();
+        if ( classifier == null && type != null )
+        {
+            classifier = type.getClassifier();
+        }
+
+        Artifact artifact =
+            new DefaultArtifact( ref.getGroupId(), ref.getArtifactId(), classifier, ext, ref.getVersionString() );
+
+        artifact = artifact.setFile( artifactFile );
+
+        return artifact;
+    }
+
     public void deploy( final AssemblyConfiguration config, final RepositorySystemSession rss, final File artifactFile,
                         final ArtifactRef ref )
         throws DeploymentException
     {
         final DeployRequest req = new DeployRequest();
-        Artifact artifact =
-            new DefaultArtifact( ref.getGroupId(), ref.getArtifactId(), ref.getClassifier(), ref.getType(),
-                                 ref.getVersionString() );
-
-        artifact = artifact.setFile( artifactFile );
+        final Artifact artifact = createArtifact( artifactFile, ref, rss );
 
         req.setArtifacts( Arrays.asList( artifact ) );
 

@@ -26,8 +26,11 @@ import org.apache.maven.graph.common.ref.ArtifactRef;
 import org.apache.maven.graph.common.ref.ProjectRef;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
+import org.apache.maven.model.InputSource;
+import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
+import org.apache.maven.model.io.ModelReader;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -106,6 +109,9 @@ public class CreateMonolithsGoal
     private PlexusContainer container;
 
     @Component
+    private ModelReader modelReader;
+
+    @Component
     private RepositoryOutputHelper outputHelper;
 
     //    @Component( role = ContainerDescriptorHandler.class )
@@ -125,128 +131,24 @@ public class CreateMonolithsGoal
         }
 
         final VersionCalculator calc = new VersionCalculator( versionSuffix, increment );
+        final Model rawModel = readRawModel();
+
         final Map<ArtifactRef, String> todo = new HashMap<>();
         final Map<ProjectRef, String> monolithVersions = new HashMap<>();
-
-        final DependencyManagement dm = project.getDependencyManagement();
-        if ( dm != null )
-        {
-            for ( final Dependency dep : dm.getDependencies() )
-            {
-                final ArtifactRef ar =
-                    new ArtifactRef( dep.getGroupId(), dep.getArtifactId(), dep.getVersion(), dep.getType(),
-                                     dep.getClassifier(), false );
-
-                final String modifiedVersion = calc.calculate( dep.getVersion() );
-                todo.put( ar, modifiedVersion );
-                monolithVersions.put( ar.asProjectRef(), modifiedVersion );
-            }
-        }
-
-        final PluginManagement pm = project.getPluginManagement();
-        if ( pm != null )
-        {
-            for ( final Plugin plugin : pm.getPlugins() )
-            {
-                if ( thisPlugin.getGroupId()
-                               .equals( plugin.getGroupId() ) && thisPlugin.getArtifactId()
-                                                                           .equals( plugin.getArtifactId() ) )
-                {
-                    continue;
-                }
-
-                final ArtifactRef ar =
-                    new ArtifactRef( plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion(), "maven-plugin",
-                                     null, false );
-
-                final String modifiedVersion = calc.calculate( plugin.getVersion() );
-
-                todo.put( ar, modifiedVersion );
-                monolithVersions.put( ar.asProjectRef(), modifiedVersion );
-            }
-        }
-
-        final ArtifactHandler pomHandler = new DefaultArtifactHandler( "pom" );
-
         final Map<ArtifactRef, MavenProject> todoProjects = new HashMap<>();
-        final LinkedList<ArtifactRef> forProjects = new LinkedList<>( todo.keySet() );
-        final Set<ArtifactRef> seen = new HashSet<>();
-        while ( !forProjects.isEmpty() )
-        {
-            final ArtifactRef ref = forProjects.removeFirst();
 
-            if ( seen.contains( ref ) )
-            {
-                continue;
-            }
+        addManagedArtifactsFromPom( todo, monolithVersions, rawModel, calc );
+        buildProjectsAndScanForPlexusUtils( todoProjects, todo, monolithVersions, calc );
 
-            getLog().info( "Reading MavenProject + artifacts for: " + ref );
+        generateMonolithAssemblies( todo, todoProjects, monolithVersions, mvnBundlers );
+    }
 
-            final DefaultProjectBuildingRequest request =
-                new DefaultProjectBuildingRequest( session.getProjectBuildingRequest() );
-
-            request.setResolveDependencies( true );
-
-            final Artifact artifact =
-                new DefaultArtifact( ref.getGroupId(), ref.getArtifactId(),
-                                     VersionRange.createFromVersion( ref.getVersionString() ), null, "pom", null,
-                                     pomHandler );
-
-            try
-            {
-                final ProjectBuildingResult result = projectBuilder.build( artifact, request );
-                final MavenProject monolithProject = result.getProject();
-
-                @SuppressWarnings( "unchecked" )
-                final ArtifactResolutionRequest arr =
-                    new ArtifactResolutionRequest().setArtifact( monolithProject.getArtifact() )
-                                                   .setRemoteRepositories( monolithProject.getRemoteArtifactRepositories() );
-
-                final ArtifactResolutionResult arresult = repoSystem.resolve( arr );
-                final Artifact resultArtifact = arresult.getArtifacts()
-                                                        .iterator()
-                                                        .next();
-
-                if ( resultArtifact.getFile() != null )
-                {
-                    project.getArtifact()
-                           .setFile( resultArtifact.getFile() );
-                }
-
-                todoProjects.put( ref, monolithProject );
-                seen.add( ref );
-
-                @SuppressWarnings( "unchecked" )
-                final List<Dependency> deps = monolithProject.getDependencies();
-                for ( final Dependency dep : deps )
-                {
-                    if ( "org.codehaus.plexus".equals( dep.getGroupId() )
-                        && "plexus-utils".equals( dep.getArtifactId() ) )
-                    {
-                        final ArtifactRef ar =
-                            new ArtifactRef( dep.getGroupId(), dep.getArtifactId(), dep.getVersion(), dep.getType(),
-                                             dep.getClassifier(), false );
-
-                        if ( !seen.contains( ar ) )
-                        {
-                            final String v = calc.calculate( dep.getVersion() );
-
-                            todo.put( ar, v );
-
-                            getLog().info( "Adding plexus-utils: " + ar + " for resolution as a monolith subsystem." );
-                            forProjects.addLast( ar );
-                        }
-                    }
-                }
-            }
-            catch ( final ProjectBuildingException e )
-            {
-                throw new MojoExecutionException( "Failed to build MavenProject instance for: "
-                    + ref.asProjectVersionRef() + ". Error: " + e.getMessage(), e );
-            }
-
-        }
-
+    private void generateMonolithAssemblies( final Map<ArtifactRef, String> todo,
+                                             final Map<ArtifactRef, MavenProject> todoProjects,
+                                             final Map<ProjectRef, String> monolithVersions,
+                                             final Set<ProjectRef> mvnBundlers )
+        throws MojoExecutionException
+    {
         try
         {
             monolithVersioningContext.setMonolithVersions( todo );
@@ -357,6 +259,10 @@ public class CreateMonolithsGoal
                 {
                     throw new MojoExecutionException( "Failed to install/deploy: " + e.getMessage(), e );
                 }
+                finally
+                {
+                    monolithVersioningContext.clear();
+                }
             }
 
             getLog().info( "Wrote:\n\n " + join( files, "\n  " ) + "\n\n" );
@@ -366,6 +272,198 @@ public class CreateMonolithsGoal
             monolithVersioningContext.clear();
         }
 
+    }
+
+    private void buildProjectsAndScanForPlexusUtils( final Map<ArtifactRef, MavenProject> todoProjects,
+                                                     final Map<ArtifactRef, String> todo,
+                                                     final Map<ProjectRef, String> monolithVersions,
+                                                     final VersionCalculator calc )
+        throws MojoExecutionException
+    {
+        final ArtifactHandler pomHandler = new DefaultArtifactHandler( "pom" );
+
+        final LinkedList<ArtifactRef> forProjects = new LinkedList<>( todo.keySet() );
+        final Set<ArtifactRef> seen = new HashSet<>();
+        while ( !forProjects.isEmpty() )
+        {
+            final ArtifactRef ref = forProjects.removeFirst();
+
+            if ( seen.contains( ref ) )
+            {
+                continue;
+            }
+
+            getLog().info( "Reading MavenProject + artifacts for: " + ref );
+
+            final DefaultProjectBuildingRequest request =
+                new DefaultProjectBuildingRequest( session.getProjectBuildingRequest() );
+
+            request.setResolveDependencies( true );
+
+            final Artifact artifact =
+                new DefaultArtifact( ref.getGroupId(), ref.getArtifactId(),
+                                     VersionRange.createFromVersion( ref.getVersionString() ), null, "pom", null,
+                                     pomHandler );
+
+            try
+            {
+                final ProjectBuildingResult result = projectBuilder.build( artifact, request );
+                final MavenProject monolithProject = result.getProject();
+
+                @SuppressWarnings( "unchecked" )
+                final ArtifactResolutionRequest arr =
+                    new ArtifactResolutionRequest().setArtifact( monolithProject.getArtifact() )
+                                                   .setRemoteRepositories( monolithProject.getRemoteArtifactRepositories() );
+
+                final ArtifactResolutionResult arresult = repoSystem.resolve( arr );
+                final Artifact resultArtifact = arresult.getArtifacts()
+                                                        .iterator()
+                                                        .next();
+
+                if ( resultArtifact.getFile() != null )
+                {
+                    project.getArtifact()
+                           .setFile( resultArtifact.getFile() );
+                }
+
+                todoProjects.put( ref, monolithProject );
+                seen.add( ref );
+
+                @SuppressWarnings( "unchecked" )
+                final List<Dependency> deps = monolithProject.getDependencies();
+                for ( final Dependency dep : deps )
+                {
+                    if ( "org.codehaus.plexus".equals( dep.getGroupId() )
+                        && "plexus-utils".equals( dep.getArtifactId() ) )
+                    {
+                        final ArtifactRef ar =
+                            new ArtifactRef( dep.getGroupId(), dep.getArtifactId(), dep.getVersion(), dep.getType(),
+                                             dep.getClassifier(), false );
+
+                        if ( !seen.contains( ar ) )
+                        {
+                            final String v = calc.calculate( dep.getVersion() );
+
+                            todo.put( ar, v );
+                            monolithVersions.put( ar.asProjectRef(), v );
+
+                            getLog().info( "Adding plexus-utils: " + ar + " for resolution as a monolith subsystem." );
+                            forProjects.addLast( ar );
+                        }
+                    }
+                }
+            }
+            catch ( final ProjectBuildingException e )
+            {
+                throw new MojoExecutionException( "Failed to build MavenProject instance for: "
+                    + ref.asProjectVersionRef() + ". Error: " + e.getMessage(), e );
+            }
+
+        }
+    }
+
+    private Model readRawModel()
+        throws MojoExecutionException
+    {
+        final Map<String, Object> options = new HashMap<>();
+        //        options.put( ModelReader.IS_STRICT, false );
+
+        final InputSource src = new InputSource();
+        src.setModelId( project.getId() );
+        src.setLocation( project.getFile()
+                                .getPath() );
+
+        options.put( ModelReader.INPUT_SOURCE, src );
+
+        try
+        {
+            return modelReader.read( project.getFile(), options );
+        }
+        catch ( final IOException e )
+        {
+            throw new MojoExecutionException( "Failed to parse raw model from: " + project.getFile() + ". Reason: "
+                + e.getMessage(), e );
+        }
+    }
+
+    private void addManagedArtifactsFromPom( final Map<ArtifactRef, String> todo,
+                                             final Map<ProjectRef, String> monolithVersions, final Model rawModel,
+                                             final VersionCalculator calc )
+    {
+        final DependencyManagement dm = project.getDependencyManagement();
+        final DependencyManagement rdm = rawModel.getDependencyManagement();
+        if ( dm != null && rdm != null )
+        {
+            for ( final Dependency dep : dm.getDependencies() )
+            {
+                final ArtifactRef ar =
+                    new ArtifactRef( dep.getGroupId(), dep.getArtifactId(), dep.getVersion(), dep.getType(),
+                                     dep.getClassifier(), false );
+
+                boolean found = false;
+                for ( final Dependency rd : rdm.getDependencies() )
+                {
+                    if ( rd.getGroupId()
+                           .equals( dep.getGroupId() ) && rd.getArtifactId()
+                                                            .equals( dep.getArtifactId() ) )
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if ( !found )
+                {
+                    continue;
+                }
+
+                final String modifiedVersion = calc.calculate( dep.getVersion() );
+                todo.put( ar, modifiedVersion );
+                monolithVersions.put( ar.asProjectRef(), modifiedVersion );
+            }
+        }
+
+        final PluginManagement pm = project.getPluginManagement();
+        final PluginManagement rpm = rawModel.getBuild() == null ? null : rawModel.getBuild()
+                                                                                  .getPluginManagement();
+        if ( pm != null && rpm != null )
+        {
+            for ( final Plugin plugin : pm.getPlugins() )
+            {
+                if ( thisPlugin.getGroupId()
+                               .equals( plugin.getGroupId() ) && thisPlugin.getArtifactId()
+                                                                           .equals( plugin.getArtifactId() ) )
+                {
+                    continue;
+                }
+
+                final ArtifactRef ar =
+                    new ArtifactRef( plugin.getGroupId(), plugin.getArtifactId(), plugin.getVersion(), "maven-plugin",
+                                     null, false );
+
+                boolean found = false;
+                for ( final Plugin rp : rpm.getPlugins() )
+                {
+                    if ( rp.getGroupId()
+                           .equals( plugin.getGroupId() ) && rp.getArtifactId()
+                                                               .equals( plugin.getArtifactId() ) )
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if ( !found )
+                {
+                    continue;
+                }
+
+                final String modifiedVersion = calc.calculate( plugin.getVersion() );
+
+                todo.put( ar, modifiedVersion );
+                monolithVersions.put( ar.asProjectRef(), modifiedVersion );
+            }
+        }
     }
 
     @Override

@@ -11,10 +11,8 @@ import org.apache.maven.plugin.assembly.model.Assembly;
 import org.apache.maven.plugin.assembly.model.ContainerDescriptorHandlerConfig;
 import org.apache.maven.plugin.assembly.model.DependencySet;
 import org.apache.maven.plugin.assembly.model.UnpackOptions;
-import org.commonjava.maven.plugins.monolith.handler.ComponentsXmlHandler;
-import org.commonjava.maven.plugins.monolith.handler.JavaServicesHandler;
-import org.commonjava.maven.plugins.monolith.handler.PluginDescriptorHandler;
-import org.commonjava.maven.plugins.monolith.handler.SpringDefsHandler;
+import org.commonjava.maven.plugins.monolith.handler.DummyPlexusContainerDescriptorHandler;
+import org.commonjava.maven.plugins.monolith.handler.MonolithDescriptorHandlerManager;
 
 import edu.emory.mathcs.backport.java.util.Collections;
 
@@ -48,10 +46,8 @@ public class AssemblyDescriptorBuilder
         final Set<UniqueContainerDescriptorHandlerConfig> descHandlers =
             new HashSet<UniqueContainerDescriptorHandlerConfig>();
 
-        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( ComponentsXmlHandler.ID ) );
-        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( PluginDescriptorHandler.ID ) );
-        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( JavaServicesHandler.ID ) );
-        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( SpringDefsHandler.ID ) );
+        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( MonolithDescriptorHandlerManager.ID ) );
+        descHandlers.add( new UniqueContainerDescriptorHandlerConfig( DummyPlexusContainerDescriptorHandler.ID ) );
 
         DEFAULT_DESCRIPTOR_HANDLERS = descHandlers;
     }

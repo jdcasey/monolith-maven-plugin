@@ -19,19 +19,20 @@ package org.commonjava.maven.plugins.monolith.handler;
  * under the License.
  */
 
-import org.apache.maven.plugin.assembly.filter.ContainerDescriptorHandler;
-import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
+import org.codehaus.plexus.logging.Logger;
+import org.commonjava.maven.plugins.monolith.comp.MonolithVersioningContext;
 
-@Component( role = ContainerDescriptorHandler.class, hint = JavaServicesHandler.ID, instantiationStrategy = "per-lookup" )
 public class JavaServicesHandler
     extends AbstractAggregatingHandler
-    implements ContainerDescriptorHandler
 {
 
-    public static final String ID = "java-services";
-
     private static final String SERVICES_PATH_PREFIX = "META-INF/services/";
+
+    public JavaServicesHandler( final MonolithVersioningContext context, final Logger logger )
+    {
+        super( context, logger );
+    }
 
     @Override
     protected String getOutputPathPrefix( final FileInfo fileInfo )

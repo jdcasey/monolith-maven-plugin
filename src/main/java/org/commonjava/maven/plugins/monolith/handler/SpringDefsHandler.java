@@ -1,17 +1,19 @@
 package org.commonjava.maven.plugins.monolith.handler;
 
-import org.apache.maven.plugin.assembly.filter.ContainerDescriptorHandler;
-import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
+import org.codehaus.plexus.logging.Logger;
+import org.commonjava.maven.plugins.monolith.comp.MonolithVersioningContext;
 
-@Component( role = ContainerDescriptorHandler.class, hint = SpringDefsHandler.ID, instantiationStrategy = "per-lookup" )
 public class SpringDefsHandler
     extends AbstractAggregatingHandler
 {
 
-    public static final String ID = "spring-defs";
-
     private static final String SPRING_PATH_PREFIX = "META-INF/";
+
+    public SpringDefsHandler( final MonolithVersioningContext monolithVersioningContext, final Logger logger )
+    {
+        super( monolithVersioningContext, logger );
+    }
 
     @Override
     protected String getOutputPathPrefix( final FileInfo fileInfo )

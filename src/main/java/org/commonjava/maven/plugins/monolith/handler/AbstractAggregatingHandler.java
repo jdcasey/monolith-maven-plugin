@@ -12,17 +12,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.maven.plugin.assembly.filter.ContainerDescriptorHandler;
 import org.apache.maven.plugin.assembly.utils.AssemblyFileUtils;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.ResourceIterator;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
+import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.IOUtil;
+import org.commonjava.maven.plugins.monolith.comp.MonolithVersioningContext;
 
 public abstract class AbstractAggregatingHandler
-    extends AbstractDescriptorHandler
-    implements ContainerDescriptorHandler
+    extends AbstractMonolithDescriptorHandler
 {
 
     private final Map<String, List<String>> catalog = new HashMap<>();
@@ -30,6 +30,11 @@ public abstract class AbstractAggregatingHandler
     protected abstract String getOutputPathPrefix( final FileInfo fileInfo );
 
     protected abstract boolean fileMatches( final FileInfo fileInfo );
+
+    protected AbstractAggregatingHandler( final MonolithVersioningContext context, final Logger logger )
+    {
+        super( context, logger );
+    }
 
     protected String getEncoding()
     {
@@ -86,9 +91,7 @@ public abstract class AbstractAggregatingHandler
                 IOUtil.close( writer );
             }
 
-            excludeOverride = true;
             archiver.addFile( f, name );
-            excludeOverride = false;
         }
     }
 
@@ -163,7 +166,6 @@ public abstract class AbstractAggregatingHandler
     @Override
     public void clearState()
     {
-        super.clearState();
         catalog.clear();
     }
 }

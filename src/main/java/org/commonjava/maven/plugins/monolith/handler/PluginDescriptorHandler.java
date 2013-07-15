@@ -33,87 +33,91 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-import org.apache.maven.plugin.assembly.filter.ContainerDescriptorHandler;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
+import org.codehaus.plexus.logging.Logger;
 import org.commonjava.maven.plugins.monolith.comp.MonolithVersioningContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
-@Component( role = ContainerDescriptorHandler.class, hint = PluginDescriptorHandler.ID, instantiationStrategy = "per-lookup" )
 public class PluginDescriptorHandler
-    extends AbstractDescriptorHandler
-    implements ContainerDescriptorHandler
+    extends AbstractMonolithDescriptorHandler
 {
-
-    public static final String ID = "plugin.xml";
 
     private static final String PLUGIN_XML_PATH = "META-INF/maven/plugin.xml";
 
-    @Requirement
-    private MonolithVersioningContext monolithVersioningContext;
-
     private Document doc;
+
+    public PluginDescriptorHandler( final MonolithVersioningContext context, final Logger logger )
+    {
+        super( context, logger );
+    }
 
     @Override
     protected boolean process( final FileInfo fileInfo )
         throws IOException
     {
-        final String modifiedVersion = monolithVersioningContext.getCurrentMonolithVersion();
-
-        if ( PLUGIN_XML_PATH.equals( fileInfo.getName() ) )
+        if ( fileInfo.isFile() )
         {
-            if ( doc == null )
+            String entry = fileInfo.getName()
+                                   .replace( '\\', '/' );
+
+            if ( entry.startsWith( "/" ) )
             {
-                if ( logger.isDebugEnabled() )
-                {
-                    logger.debug( "Modifying plugin descriptor." );
-                }
+                entry = entry.substring( 1 );
+            }
 
-                try
+            if ( PLUGIN_XML_PATH.equals( entry ) )
+            {
+                logger.info( "Found plugin descriptor..." );
+                if ( doc == null )
                 {
-                    doc = DocumentBuilderFactory.newInstance()
-                                                .newDocumentBuilder()
-                                                .parse( fileInfo.getContents() );
-                }
-                catch ( SAXException | ParserConfigurationException e )
-                {
-                    throw new ArchiverException( "Failed to parse plugin.xml file: " + e.getMessage(), e );
-                }
+                    logger.info( "Parsing plugin descriptor." );
 
-                if ( modifiedVersion != null )
-                {
-                    final Element version = getChild( doc.getDocumentElement(), "version" );
-                    if ( version != null && !version.getTextContent()
-                                                    .equals( modifiedVersion ) )
+                    try
                     {
-                        version.setTextContent( modifiedVersion );
+                        doc = DocumentBuilderFactory.newInstance()
+                                                    .newDocumentBuilder()
+                                                    .parse( fileInfo.getContents() );
                     }
-                }
-
-                final Element depRoot = getChild( doc.getDocumentElement(), "dependencies" );
-                if ( depRoot != null )
-                {
-                    final List<Element> deps = getChildren( depRoot, "dependency" );
-                    for ( final Element dep : deps )
+                    catch ( SAXException | ParserConfigurationException e )
                     {
-                        if ( !monolithVersioningContext.isMonolith( dep ) )
+                        throw new ArchiverException( "Failed to parse plugin.xml file: " + e.getMessage(), e );
+                    }
+
+                    final String modifiedVersion = monolithVersioningContext.getCurrentMonolithVersion();
+                    if ( modifiedVersion != null )
+                    {
+                        final Element version = getChild( doc.getDocumentElement(), "version" );
+                        if ( version != null && !version.getTextContent()
+                                                        .equals( modifiedVersion ) )
                         {
-                            depRoot.removeChild( dep );
+                            version.setTextContent( modifiedVersion );
+                        }
+                    }
+
+                    final Element depRoot = getChild( doc.getDocumentElement(), "dependencies" );
+                    if ( depRoot != null )
+                    {
+                        final List<Element> deps = getChildren( depRoot, "dependency" );
+                        for ( final Element dep : deps )
+                        {
+                            if ( !monolithVersioningContext.isMonolith( dep ) )
+                            {
+                                depRoot.removeChild( dep );
+                            }
                         }
                     }
                 }
-            }
-            else if ( logger.isDebugEnabled() )
-            {
-                logger.debug( "Skipping plugin descriptor already stored in filter context." );
-            }
+                else
+                {
+                    logger.info( "Skipping...plugin descriptor was already stored for inclusion." );
+                }
 
-            return true;
+                return true;
+            }
         }
 
         return false;
@@ -125,11 +129,6 @@ public class PluginDescriptorHandler
     {
         if ( doc != null )
         {
-            if ( logger.isDebugEnabled() )
-            {
-                logger.debug( "ADDING - Plugin descriptor." );
-            }
-
             File f = null;
             FileOutputStream stream = null;
             try
@@ -149,28 +148,26 @@ public class PluginDescriptorHandler
                 closeQuietly( stream );
             }
 
-            excludeOverride = true;
-
+            logger.info( "ADDING - Plugin descriptor: " + PLUGIN_XML_PATH + " from file: " + f.getAbsolutePath() );
             archiver.addFile( f, PLUGIN_XML_PATH );
-
-            excludeOverride = false;
         }
         else if ( logger.isDebugEnabled() )
         {
-            logger.debug( "SKIPPING - Plugin descriptor not stored in filter context. NOT ADDING." );
+            logger.debug( "SKIPPING - Plugin descriptor was not encountered. NOT ADDING." );
         }
     }
 
     @Override
     protected List<String> getGeneratedFileList()
     {
+        logger.info( "Parsed plugin.xml: " + doc );
         return doc == null ? null : Collections.singletonList( PLUGIN_XML_PATH );
     }
 
     @Override
     public void clearState()
     {
-        super.clearState();
+        logger.info( "CLEARING parsed plugin.xml: " + doc );
         doc = null;
     }
 
