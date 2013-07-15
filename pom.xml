@@ -7,8 +7,30 @@
   <version>0.1-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
 
-  <name>monolith-maven-plugin</name>
+  <name>Monolith-Generator Maven Plugin</name>
+  
   <url>http://github.com/jdcasey/monolith-maven-plugin</url>
+  
+  <licenses>
+    <license>
+      <name>APLv2.0</name>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  
+  <developers>
+    <developer>
+      <id>jdcasey</id>
+      <email>jdcasey@commonjava.org</email>
+      <name>John Casey</name>
+    </developer>
+  </developers>
+  
+  <scm>
+    <connection>scm:git:http://jdcasey@github.com/jdcasey/monolith-maven-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:jdcasey/monolith-maven-plugin.git</developerConnection>
+    <url>http://github.com/jdcasey/monolith-maven-plugin</url>
+  </scm>
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -47,7 +69,7 @@
     <dependency>
       <groupId>org.commonjava.maven.atlas</groupId>
       <artifactId>atlas-identities</artifactId>
-      <version>0.7.0-SNAPSHOT</version>
+      <version>0.7.0</version>
     </dependency>
     <dependency>
       <groupId>commons-lang</groupId>
@@ -80,14 +102,7 @@
         <plugin>
           <artifactId>maven-plugin-plugin</artifactId>
           <version>3.2</version>
-<!--           <dependencies>
-            <dependency>
-              <groupId>org.apache.maven.plugin-tools</groupId>
-              <artifactId>maven-plugin-annotations</artifactId>
-              <version>3.2</version>
-            </dependency>
-          </dependencies>
- -->          <executions>
+          <executions>
             <execution>
               <id>generate-descriptor</id>
               <goals>
@@ -112,6 +127,36 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.1</version>
+          <configuration>
+            <mavenExecutorId>forked-path</mavenExecutorId>
+            <useReleaseProfile>false</useReleaseProfile>
+            <arguments>-Prelease</arguments>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>1.0</version>
+          <executions>
+            <execution>
+              <id>enforce-maven</id>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <requireMavenVersion>
+                    <version>(,2.1.0),(2.1.0,2.2.0),(2.2.0,)</version>
+                    <message>Maven 2.1.0 and 2.2.0 produce incorrect GPG signatures and checksums respectively.</message>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -119,9 +164,76 @@
         <artifactId>maven-plugin-plugin</artifactId>
       </plugin>
       <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+      </plugin>
+      <plugin>
         <groupId>org.codehaus.plexus</groupId>
         <artifactId>plexus-component-metadata</artifactId>
       </plugin>
     </plugins>
   </build>
+  
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.1.2</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>2.8.1</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.1</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>local-snapshots</id>
+      <name>Local Snapshots</name>
+      <url>http://localhost:9080/aprox/api/1.0/group/public/</url>
+    </snapshotRepository>
+    <repository>
+      <id>sonatype-nexus-staging</id>
+      <name>Nexus Release Repository</name>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+
 </project>
