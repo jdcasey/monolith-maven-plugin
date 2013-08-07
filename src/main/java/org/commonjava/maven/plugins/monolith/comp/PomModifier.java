@@ -29,7 +29,7 @@ public class PomModifier
 
     static
     {
-        final Set<String> moddableScopes = new HashSet<>();
+        final Set<String> moddableScopes = new HashSet<String>();
         moddableScopes.add( "runtime" );
         moddableScopes.add( "compile" );
 

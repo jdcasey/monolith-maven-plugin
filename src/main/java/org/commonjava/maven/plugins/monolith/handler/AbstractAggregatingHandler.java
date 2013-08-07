@@ -25,7 +25,7 @@ public abstract class AbstractAggregatingHandler
     extends AbstractMonolithDescriptorHandler
 {
 
-    private final Map<String, List<String>> catalog = new HashMap<>();
+    private final Map<String, List<String>> catalog = new HashMap<String, List<String>>();
 
     protected abstract String getOutputPathPrefix( final FileInfo fileInfo );
 

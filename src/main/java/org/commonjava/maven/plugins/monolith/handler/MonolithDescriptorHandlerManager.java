@@ -78,7 +78,7 @@ public class MonolithDescriptorHandlerManager
     @Override
     public final List getVirtualFiles()
     {
-        final List<String> files = new ArrayList<>();
+        final List<String> files = new ArrayList<String>();
         final Set<AbstractMonolithDescriptorHandler> handlers = monolithVersioningContext.getDescriptorHandlers();
 
         for ( final AbstractMonolithDescriptorHandler handler : handlers )

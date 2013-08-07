@@ -37,7 +37,7 @@ public class MonolithVersioningContext
     {
         if ( descriptorHandlers == null )
         {
-            descriptorHandlers = new HashSet<>( 4 );
+            descriptorHandlers = new HashSet<AbstractMonolithDescriptorHandler>( 4 );
 
             descriptorHandlers.add( new PluginDescriptorHandler( this, logger ) );
             descriptorHandlers.add( new ComponentsXmlHandler( this, logger ) );
@@ -50,7 +50,7 @@ public class MonolithVersioningContext
 
     public void setMonolithVersions( final Map<ArtifactRef, String> monolithVersions )
     {
-        final Map<ProjectRef, String> mv = new HashMap<>();
+        final Map<ProjectRef, String> mv = new HashMap<ProjectRef, String>();
         for ( final Entry<ArtifactRef, String> entry : monolithVersions.entrySet() )
         {
             final ArtifactRef key = entry.getKey();

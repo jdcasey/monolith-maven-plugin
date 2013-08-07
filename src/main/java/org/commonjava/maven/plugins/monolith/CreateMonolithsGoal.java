@@ -121,7 +121,7 @@ public class CreateMonolithsGoal
     public void execute()
         throws MojoExecutionException, MojoFailureException
     {
-        final Set<ProjectRef> mvnBundlers = new HashSet<>();
+        final Set<ProjectRef> mvnBundlers = new HashSet<ProjectRef>();
         if ( mavenBundlers != null )
         {
             for ( final String ga : mavenBundlers )
@@ -133,9 +133,9 @@ public class CreateMonolithsGoal
         final VersionCalculator calc = new VersionCalculator( versionSuffix, increment );
         final Model rawModel = readRawModel();
 
-        final Map<ArtifactRef, String> todo = new HashMap<>();
-        final Map<ProjectRef, String> monolithVersions = new HashMap<>();
-        final Map<ArtifactRef, MavenProject> todoProjects = new HashMap<>();
+        final Map<ArtifactRef, String> todo = new HashMap<ArtifactRef, String>();
+        final Map<ProjectRef, String> monolithVersions = new HashMap<ProjectRef, String>();
+        final Map<ArtifactRef, MavenProject> todoProjects = new HashMap<ArtifactRef, MavenProject>();
 
         addManagedArtifactsFromPom( todo, monolithVersions, rawModel, calc );
         buildProjectsAndScanForPlexusUtils( todoProjects, todo, monolithVersions, calc );
@@ -153,7 +153,7 @@ public class CreateMonolithsGoal
         {
             monolithVersioningContext.setMonolithVersions( todo );
 
-            final List<File> files = new ArrayList<>();
+            final List<File> files = new ArrayList<File>();
 
             for ( final Entry<ArtifactRef, String> entry : todo.entrySet() )
             {
@@ -241,7 +241,17 @@ public class CreateMonolithsGoal
                     outputHelper.deploy( config, session.getRepositorySession(), pom, pomRef );
                     outputHelper.deploy( config, session.getRepositorySession(), assembly, adjRef );
                 }
-                catch ( ArchiveCreationException | AssemblyFormattingException | InvalidAssemblerConfigurationException e )
+                catch ( final ArchiveCreationException e )
+                {
+                    throw new MojoExecutionException( "Failed to create monolith assembly: "
+                        + ref.asProjectVersionRef() + ". Error: " + e.getMessage(), e );
+                }
+                catch ( final AssemblyFormattingException e )
+                {
+                    throw new MojoExecutionException( "Failed to create monolith assembly: "
+                        + ref.asProjectVersionRef() + ". Error: " + e.getMessage(), e );
+                }
+                catch ( final InvalidAssemblerConfigurationException e )
                 {
                     throw new MojoExecutionException( "Failed to create monolith assembly: "
                         + ref.asProjectVersionRef() + ". Error: " + e.getMessage(), e );
@@ -255,7 +265,11 @@ public class CreateMonolithsGoal
                 {
                     throw new MojoExecutionException( "Cannot lookup AssemblyArchiver: " + e.getMessage(), e );
                 }
-                catch ( InstallationException | DeploymentException e )
+                catch ( final InstallationException e )
+                {
+                    throw new MojoExecutionException( "Failed to install/deploy: " + e.getMessage(), e );
+                }
+                catch ( final DeploymentException e )
                 {
                     throw new MojoExecutionException( "Failed to install/deploy: " + e.getMessage(), e );
                 }
@@ -282,8 +296,8 @@ public class CreateMonolithsGoal
     {
         final ArtifactHandler pomHandler = new DefaultArtifactHandler( "pom" );
 
-        final LinkedList<ArtifactRef> forProjects = new LinkedList<>( todo.keySet() );
-        final Set<ArtifactRef> seen = new HashSet<>();
+        final LinkedList<ArtifactRef> forProjects = new LinkedList<ArtifactRef>( todo.keySet() );
+        final Set<ArtifactRef> seen = new HashSet<ArtifactRef>();
         while ( !forProjects.isEmpty() )
         {
             final ArtifactRef ref = forProjects.removeFirst();
@@ -365,7 +379,7 @@ public class CreateMonolithsGoal
     private Model readRawModel()
         throws MojoExecutionException
     {
-        final Map<String, Object> options = new HashMap<>();
+        final Map<String, Object> options = new HashMap<String, Object>();
         //        options.put( ModelReader.IS_STRICT, false );
 
         final InputSource src = new InputSource();

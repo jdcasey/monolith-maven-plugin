@@ -61,7 +61,7 @@ public class ComponentsXmlHandler
     // [jdcasey] Switched visibility to protected to allow testing. Also, because this class isn't final, it should
     // allow
     // some minimal access to the components accumulated for extending classes.
-    private final Map<String, Element> components = new LinkedHashMap<>();
+    private final Map<String, Element> components = new LinkedHashMap<String, Element>();
 
     public static final String COMPONENTS_XML_PATH = "META-INF/plexus/components.xml";
 
@@ -80,7 +80,11 @@ public class ComponentsXmlHandler
                                         .newDocumentBuilder()
                                         .parse( stream );
         }
-        catch ( SAXException | ParserConfigurationException e )
+        catch ( final SAXException e )
+        {
+            throw new IOException( "Failed to parse components.xml: " + e.getMessage(), e );
+        }
+        catch ( final ParserConfigurationException e )
         {
             throw new IOException( "Failed to parse components.xml: " + e.getMessage(), e );
         }
@@ -141,7 +145,12 @@ public class ComponentsXmlHandler
 
                 writeDocument( document, out );
             }
-            catch ( TransformerException | ParserConfigurationException e )
+            catch ( final TransformerException e )
+            {
+                throw new IOException( "Failed to construct/write aggregated components.xml document: "
+                    + e.getMessage(), e );
+            }
+            catch ( final ParserConfigurationException e )
             {
                 throw new IOException( "Failed to construct/write aggregated components.xml document: "
                     + e.getMessage(), e );

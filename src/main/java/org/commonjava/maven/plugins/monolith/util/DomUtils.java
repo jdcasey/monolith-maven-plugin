@@ -27,7 +27,7 @@ public final class DomUtils
 
     public static List<Element> getChildren( final Element in, final String named )
     {
-        final List<Element> children = new ArrayList<>();
+        final List<Element> children = new ArrayList<Element>();
 
         final NodeList list = in.getElementsByTagName( named );
         for ( int i = 0; i < list.getLength(); i++ )
@@ -40,14 +40,14 @@ public final class DomUtils
 
     public static List<Element> getChildrenFromPath( final Element in, final String path )
     {
-        final List<String> pathElements = new ArrayList<>( Arrays.asList( path.split( "[./]" ) ) );
-        List<Element> last = new ArrayList<>();
+        final List<String> pathElements = new ArrayList<String>( Arrays.asList( path.split( "[./]" ) ) );
+        List<Element> last = new ArrayList<Element>();
         last.add( in );
         while ( !pathElements.isEmpty() )
         {
             final String nextName = pathElements.remove( 0 );
 
-            final List<Element> next = new ArrayList<>();
+            final List<Element> next = new ArrayList<Element>();
             for ( final Element lastEl : last )
             {
                 next.addAll( getChildren( lastEl, nextName ) );

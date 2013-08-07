@@ -107,15 +107,17 @@ public class VersionCalculator
         // assume the version is of the form 1.2.3.GA, where appending the 
         // suffix requires a '-' to concatenate the string of the final version 
         // part in OSGi.
-        String sep = "-";
+        final String sep = "-";
 
         // now, check the above assumption...
         // if the version is of the form: 1.2.3, then we need to append the 
         // suffix as a final version part using '.'
-        if ( Character.isDigit( result.charAt( result.length() - 1 ) ) )
-        {
-            sep = ".";
-        }
+
+        // TOO COMPLICATED WITH NO REAL CLEAR ADVANTAGE...
+        //        if ( Character.isDigit( result.charAt( result.length() - 1 ) ) )
+        //        {
+        //            sep = ".";
+        //        }
 
         // TODO OSGi fixup for versions like 1.2.GA or 1.2 (too few parts)
 

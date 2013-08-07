@@ -82,7 +82,11 @@ public class PluginDescriptorHandler
                                                     .newDocumentBuilder()
                                                     .parse( fileInfo.getContents() );
                     }
-                    catch ( SAXException | ParserConfigurationException e )
+                    catch ( final SAXException e )
+                    {
+                        throw new ArchiverException( "Failed to parse plugin.xml file: " + e.getMessage(), e );
+                    }
+                    catch ( final ParserConfigurationException e )
                     {
                         throw new ArchiverException( "Failed to parse plugin.xml file: " + e.getMessage(), e );
                     }
@@ -139,7 +143,11 @@ public class PluginDescriptorHandler
                 stream = new FileOutputStream( f );
                 writeDocument( doc, stream );
             }
-            catch ( TransformerException | IOException e )
+            catch ( final TransformerException e )
+            {
+                throw new ArchiverException( "Failed to write modified plugin.xml descriptor: " + e.getMessage(), e );
+            }
+            catch ( final IOException e )
             {
                 throw new ArchiverException( "Failed to write modified plugin.xml descriptor: " + e.getMessage(), e );
             }
